@@ -4,62 +4,63 @@
 #include <stdbool.h>
 #include <stdlib.h>
 
-#define MAXTOKENS 1000 // what we return as tokens 
+#define MAXTOKENS 1000
 #define MAXLEN 100
 #define SPECIALLEN 5
 
 char special_characters[SPECIALLEN] = {'>', '<', '&', '|', '$'};
 
-int tokenize(char argument[], int max_len);
+int tokenize(char *line, char *tokens[], int max_tokens, int max_len, int *token_num);
 void printTokens(char *tokens[], int token_num);
 
-// MEMORY RELATED FUNCTIONS
-int allocateMemory(char argument[], char *tokens[], int max_tokens, int *token_num);
+// MEMORY FUNCTIONS
+int *allocateMemory(char argument[], char *tokens[], int max_tokens, int *token_num);
 void freeMemory(char *tokens[], int token_num);
 
 // HELPER FUNCTIONS
 bool isspecial(char character);
 bool is_valid_double_operator(char first, char second);
 
-// FUNCTIONS FOR HANDLING DIFFERENT INPUTS
-int handle_double_quotes(char *argument, int max_len);
-int handle_single_quotes(char *argument, int max_len);
-int handle_special_characters(char *argument, char character, int max_len);
+// INPUT HANDLERS
+char *handle_double_quotes(char argument[], char *p, int max_len);
+char *handle_single_quotes(char argument[], char *p, int max_len);
+char *handle_special_characters(char argument[], char *p, int max_len);
 
 int main(void) {
     char *tokens[MAXTOKENS];
-    char arg[MAXLEN];
-    int arg_status, token_status, token_num = 0;
+    char *buffer = NULL;
+    size_t buffsize = 0;
+    size_t read;
+    int token_status, token_num;
 
     while (1) {
-        arg_status = tokenize(arg, MAXLEN);
+        printf("****************************\n");
+        printf("tokenizer> ");
+        read = getline(&buffer, &buffsize, stdin);
 
-        // Check for real EOF (Ctrl+D)
-        if (arg_status == EOF || feof(stdin)) {
+        if (read == -1) {
             fprintf(stderr, "Detected EOF (Ctrl+D), exiting...\n");
-            if (token_num > 0) {
-                printTokens(tokens, token_num);
-                freeMemory(tokens, token_num);
-            }
             break;
         }
 
-        if (arg_status < 0) {
-            // Handle unmatched quote
-            fprintf(stderr, "Unmatched quote, exiting.\n");
-            break;
-        }
+        if (buffer[read - 1] == '\n')
+            buffer[read - 1] = '\0';
 
-        token_status = allocateMemory(arg, tokens, MAXTOKENS, &token_num);
+        token_num = 0;
+        token_status = tokenize(buffer, tokens, MAXTOKENS, MAXLEN, &token_num);
+
         if (token_status < 0) {
-            fprintf(stderr, "Error While Allocating Memory!\n");
-            return 1;
+            fprintf(stderr, "Error: tokenizing input\n");
+            continue;
         }
+
+        printTokens(tokens, token_num);
+        freeMemory(tokens, token_num);
     }
 
+    free(buffer);
     return 0;
 }
-
 
 void freeMemory(char *tokens[], int token_num) {
     for (int i = 0; i < token_num; i++) 
@@ -69,98 +70,103 @@ void freeMemory(char *tokens[], int token_num) {
 void printTokens(char *tokens[], int token_num) {
     printf("****************************\n");
     printf("CALLING FUNCTION: printTokens\n");
-    for (int i = 0; i < token_num; i++)
+    for (int i = 0; i < token_num; i++) {
         printf("%s\n", tokens[i]);
+    }
 }
 
-int allocateMemory(char argument[], char *tokens[], int max_tokens, int *token_num) {
+int *allocateMemory(char *argument, char *tokens[], int max_tokens, int *token_num) {
     char *p;
-    if (*token_num < max_tokens && ((p = (char *)malloc(strlen(argument)+1)) != NULL)) {
-        printf("****************************\n");
-        printf("CALLING FUNCTION: allocateMemory\n");
-        printf("ARGUMENT: %s\n", argument);
+    if (*token_num < max_tokens && ((p = malloc(strlen(argument) + 1)) != NULL)) {
+        // Debug
+        // printf("****************************\n");
+        // printf("CALLING FUNCTION: allocateMemory\n");
+        // printf("ARGUMENT: %s\n", argument);
         strcpy(p, argument);
         tokens[(*token_num)++] = p;
-    } else
-        return -1;
-
-    return 0;
-}   
-
-int tokenize(char argument[], int max_len) {
-    int c;
-
-    // skip the whitespaces
-    while (isspace(c = getchar()))
-        ;
-    
-    if (c == EOF)
-        return EOF;
-
-    /* Process the first non space character */
-    /* handle double quotes and escape characters */
-    if (c == '"') {
-        printf("********************************\n");
-        printf("HANDLING DOUBLE QUOTES\n");
-        return handle_double_quotes(argument, max_len); 
+    } else {
+        return NULL;
     }
 
-    /* handle single quotes*/
-    if (c == '\'') {
-        printf("********************************\n");
-        printf("HANDLING SINGLE QUOTES\n");
-        return handle_single_quotes(argument, max_len);
-    }
-
-    /* Process Special Characters */
-    if (isspecial(c)) {
-        printf("********************************\n");
-        printf("HANDLING SPECIAL CHARACTERS\n");
-        return handle_special_characters(argument, c, max_len);
-    }
-
-    /* Process normal characters: A-Z, a-Z, 1-9, / */   
-    else {
-        printf("********************************\n");
-        printf("HANDLING NON SPECIAL CHARACTERS\n");
-        while (max_len > 1 && !isspecial(c) && !isspace(c)) {
-            *argument++ = c;
-            c = getchar();
-        }
-        ungetc(c, stdin); //put c back to buffer to process it the next iteration
-    }
-
-    *argument = '\0';
-    return 0; 
+    return token_num;
 }
+
+int tokenize(char *line, char *tokens[], int max_tokens, int max_len, int *token_num) {
+    char *p = line;
+    char buffer[MAXLEN] = {0};
+    int memory_status;
+
+    *token_num = 0;
+
+    printf("Line1: %s\n", line);
+
+    while (*p != '\0') {
+        while (isspace(*p)) p++;
+        if (*p == '\0') break;
+
+        printf("Buffer Befor Handling a token: %s\n", buffer);
+
+        printf("****************************\n");
+        printf("Processing character: %c\n", *p);
+        printf("Line: %s\n", line);
+
+        char *b = buffer;
+        int len = max_len;
+
+        if (*p == '"') {
+            printf("Entering double quotes handler...\n");
+            p = handle_double_quotes(buffer, p, len);
+            printf("Buffer After Handling a token: %s\n", buffer);
+            if (p == NULL) {
+                fprintf(stderr, "Unmatched double quotes\n");
+                return -1;
+            }
+        }
+        else if (*p == '\'') {
+            printf("Entering single quotes handler...\n");
+            p = handle_single_quotes(buffer, p, len);
+            printf("Buffer After Handling a token: %s\n", buffer);
+            if (p == NULL) {
+                fprintf(stderr, "Unmatched single quotes\n");
+                return -1;
+            }
+        }
+        else if (isspecial(*p)) {
+            printf("Handling special character: %c\n", *p);
+            p = handle_special_characters(buffer, p, len);
+            printf("Buffer After Handling a token: %s\n", buffer);
+        }
+        else {
+            while (len > 1 && *p != '\0' && !isspecial(*p) && !isspace(*p)) {
+                *b++ = *p++;
+                len--;
+            }
+            *b = '\0';
+            printf("Buffer After Handling a normal token: %s\n", buffer);
+        }
+
+        printf("Extracted token: \"%s\"\n", buffer);
+
+        if (allocateMemory(buffer, tokens, max_tokens, token_num) == NULL) {
+            fprintf(stderr, "Error allocating memory\n");
+            return -1;
+        }
+        
+        for (int i = 0; i < sizeof(buffer); i++) {
+            buffer[i] = 0;
+        }
+    }
+
+    tokens[*token_num] = NULL; // null-terminate list
+    return 0;
+}
+
 
 bool isspecial(char character) {
     for (int i = 0; i < SPECIALLEN; i++)
         if (character == special_characters[i])
             return true;
-
     return false;
-}
-
-int handle_special_characters(char *argument, char character, int max_len) {
-    int c;
-    if (max_len > 1) {
-        *argument++ = character;
-        max_len--;
-
-        c = getchar();
-        if (max_len > 1 && is_valid_double_operator(character, c)) {
-            *argument++ = c;
-            max_len--;
-        } else if (c == EOF) 
-            return EOF;
-        else
-            ungetc(c, stdin);
-
-        *argument = '\0';
-        return 0;
-    } else
-        return -1;
 }
 
 bool is_valid_double_operator(char first, char second) {
@@ -170,55 +176,52 @@ bool is_valid_double_operator(char first, char second) {
            (first == '|' && second == '|');
 }
 
-int handle_single_quotes(char *argument, int max_len) {
-    int c;
-
-    while (max_len > 1 && (c = getchar()) != EOF) {
-        if (c == '\'')
-            break;
-        else {
-            *argument++ = c;
-            max_len--;
-        }
+char *handle_single_quotes(char *argument, char *p, int max_len) {
+    while (max_len > 1) {
+        if (*++p == '\0') return NULL;  // prevent going out of bounds
+        if (*p == '\'') break;
+        *argument++ = *p;
+        max_len--;
     }
-
-    if (c == EOF) {
-        fprintf(stderr, "Error: unmatched single quote\n");
-        return -1; // -1 means there was unmatched quote
-    }
-
+    if (max_len <= 1) return NULL;
     *argument = '\0';
-    return 0;
+    return p + 1;
 }
 
-int handle_double_quotes(char *argument, int max_len) {
-    int c, next;
-
-    while (max_len > 1 && (c = getchar()) != EOF) {
-        if (c == '\\') {
-            next = getchar();
-            if (next == EOF) {
-                fprintf(stderr, "Error: unmatched double quote\n");
-                return -1;
-            }
-            *argument++ = next;
+char *handle_double_quotes(char *argument, char *p, int max_len) {
+    while (max_len > 1) {
+        if (*++p == '\0') return NULL;
+        if (*p == '\\') {
+            if (*++p == '\0') return NULL;
+            *argument++ = *p;
             max_len--;
-        } 
-        else if (c == '"')
+        } else if (*p == '"') {
             break;
-        else {
-            printf("Getting normal characters...");
-            *argument++ = c;
+        } else {
+            *argument++ = *p;
             max_len--;
         }
     }
+    if (max_len <= 1) return NULL;
+    *argument = '\0';
+    return p + 1;
+}
 
-    
-    if (c == EOF) {
-        fprintf(stderr, "Error: unmatched double quote\n");
-        return -1; // -1 means there was unmatched quote
+char *handle_special_characters(char *argument, char *p, int max_len) {
+    char character = *p;
+    if (max_len > 1) {
+        *argument++ = character;
+        max_len--;
+
+        char *next = p + 1;
+        if (*next != '\0' && is_valid_double_operator(character, *next)) {
+            *argument++ = *next;
+            max_len--;
+            p = next;
+        }
+
+        *argument = '\0';
+        return p + 1;
     }
-
-    *argument = '\0'; 
-    return 0;
+    return NULL;
 }
