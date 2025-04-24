@@ -12,11 +12,18 @@ char special_characters[SPECIALLEN] = {'>', '<', '&', '|', '$'};
 
 int tokenize(char argument[], int max_len);
 void printTokens(char *tokens[], int token_num);
+
+// MEMORY RELATED FUNCTIONS
 int allocateMemory(char argument[], char *tokens[], int max_tokens, int *token_num);
 void freeMemory(char *tokens[], int token_num);
+
+// HELPER FUNCTIONS
 bool isspecial(char character);
 bool is_valid_double_operator(char first, char second);
+
+// FUNCTIONS FOR HANDLING DIFFERENT INPUTS
 int handle_double_quotes(char *argument, int max_len);
+int handle_single_quotes(char *argument, int max_len);
 int handle_special_characters(char *argument, char character, int max_len);
 
 int main(void) {
@@ -82,6 +89,13 @@ int tokenize(char argument[], int max_len) {
         return handle_double_quotes(argument, max_len); 
     }
 
+    /* handle single quotes*/
+    if (c == '\'') {
+        printf("********************************\n");
+        printf("HANDLING SINGLE QUOTES\n");
+        return handle_single_quotes(argument, max_len);
+    }
+
     /* Process Special Characters */
     if (isspecial(c)) {
         printf("********************************\n");
@@ -140,6 +154,21 @@ bool is_valid_double_operator(char first, char second) {
            (first == '|' && second == '|');
 }
 
+int handle_single_quotes(char *argument, int max_len) {
+    int c;
+
+    while (max_len > 1 && (c = getchar()) != EOF) {
+        if (c == '\'')
+            break;
+        else {
+            *argument++ = c;
+            max_len--;
+        }
+    }
+
+    *argument = '\0';
+    return (c == EOF) ? EOF : 0;
+}
 
 int handle_double_quotes(char *argument, int max_len) {
     int c, next;
