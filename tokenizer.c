@@ -31,19 +31,35 @@ int main(void) {
     char arg[MAXLEN];
     int arg_status, token_status, token_num = 0;
 
-    while ((arg_status = tokenize(arg, MAXLEN)) == 0)
-    {
-        if ((token_status = allocateMemory(arg, tokens, MAXTOKENS, &token_num)) < 0) {
-            printf("Error While Allocating Memory!");
+    while (1) {
+        arg_status = tokenize(arg, MAXLEN);
+
+        // Check for real EOF (Ctrl+D)
+        if (arg_status == EOF || feof(stdin)) {
+            fprintf(stderr, "Detected EOF (Ctrl+D), exiting...\n");
+            if (token_num > 0) {
+                printTokens(tokens, token_num);
+                freeMemory(tokens, token_num);
+            }
+            break;
+        }
+
+        if (arg_status < 0) {
+            // Handle unmatched quote
+            fprintf(stderr, "Unmatched quote, exiting.\n");
+            break;
+        }
+
+        token_status = allocateMemory(arg, tokens, MAXTOKENS, &token_num);
+        if (token_status < 0) {
+            fprintf(stderr, "Error While Allocating Memory!\n");
             return 1;
         }
     }
 
-    printTokens(tokens, token_num);
-    freeMemory(tokens, token_num);
-
     return 0;
 }
+
 
 void freeMemory(char *tokens[], int token_num) {
     for (int i = 0; i < token_num; i++) 
@@ -166,8 +182,13 @@ int handle_single_quotes(char *argument, int max_len) {
         }
     }
 
+    if (c == EOF) {
+        fprintf(stderr, "Error: unmatched single quote\n");
+        return -1; // -1 means there was unmatched quote
+    }
+
     *argument = '\0';
-    return (c == EOF) ? EOF : 0;
+    return 0;
 }
 
 int handle_double_quotes(char *argument, int max_len) {
@@ -176,17 +197,28 @@ int handle_double_quotes(char *argument, int max_len) {
     while (max_len > 1 && (c = getchar()) != EOF) {
         if (c == '\\') {
             next = getchar();
+            if (next == EOF) {
+                fprintf(stderr, "Error: unmatched double quote\n");
+                return -1;
+            }
             *argument++ = next;
             max_len--;
         } 
         else if (c == '"')
             break;
         else {
+            printf("Getting normal characters...");
             *argument++ = c;
             max_len--;
         }
     }
 
-    *argument = '\0';
-    return (c == EOF) ? EOF : 0;
+    
+    if (c == EOF) {
+        fprintf(stderr, "Error: unmatched double quote\n");
+        return -1; // -1 means there was unmatched quote
+    }
+
+    *argument = '\0'; 
+    return 0;
 }
