@@ -119,7 +119,8 @@ bool is_special_char(char character) {
 
 bool is_valid_double_operator(char first, char second) {
   return (first == '>' && second == '>') || (first == '<' && second == '<') ||
-         (first == '&' && second == '&') || (first == '|' && second == '|');
+         (first == '&' && second == '&') || (first == '|' && second == '|') ||
+         (first == '$' && second == '$');
 }
 
 char *handle_single_quotes(char token_buffer[], char *p, int max_len) {
