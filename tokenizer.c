@@ -7,7 +7,7 @@
 
 #include "tokenizer.h"
 
-static const char special_characters[SPECIALLEN] = {'>', '<', '&', '|', '$'};
+static const char special_characters[SPECIALLEN] = {'>', '<', '&', '|'};
 
 // MEMORY FUNCTIONS
 int store_token(char *argument, char *tokens[], int max_tokens, int *token_num);
@@ -119,8 +119,7 @@ bool is_special_char(char character) {
 
 bool is_valid_double_operator(char first, char second) {
   return (first == '>' && second == '>') || (first == '<' && second == '<') ||
-         (first == '&' && second == '&') || (first == '|' && second == '|') ||
-         (first == '$' && second == '$');
+         (first == '&' && second == '&') || (first == '|' && second == '|');
 }
 
 char *handle_single_quotes(char token_buffer[], char *p, int max_len) {
